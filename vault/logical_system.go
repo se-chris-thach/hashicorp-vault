@@ -4541,7 +4541,7 @@ func (b *SystemBackend) pathInternalOpenAPI(ctx context.Context, req *logical.Re
 	// Generic mount paths will primarily be used for code generation purposes.
 	// This will result in parameterized mount paths being returned instead of
 	// hardcoded actual paths. For example /auth/my-auth-method/login would be
-	// replaced with /auth/{my-auth-method_mount_path}/login.
+	// replaced with /auth/{my_auth_method_mount_path}/login.
 	//
 	// Note that for this to actually be useful, you have to be using it with
 	// a Vault instance in which you have mounted one of each secrets engine
@@ -4615,7 +4615,7 @@ func (b *SystemBackend) pathInternalOpenAPI(ctx context.Context, req *logical.Re
 						(pluginType == "system" || pluginType == "identity" || pluginType == "cubbyhole"))
 
 				if !isSingletonMount {
-					mountPathParameterName = strings.TrimRight(mount, "/") + "_mount_path"
+					mountPathParameterName = strings.TrimRight(strings.ReplaceAll(mount, "-", "_"), "/") + "_mount_path"
 				}
 			}
 
@@ -4708,19 +4708,6 @@ type SealStatusResponse struct {
 	Warnings          []string `json:"warnings,omitempty"`
 }
 
-// getStatusWarnings exposes potentially dangerous overrides in the status response
-// currently, this only warns about VAULT_DISABLE_SERVER_SIDE_CONSISTENT_TOKENS,
-// but should be extended to report more warnings where appropriate
-func (core *Core) getStatusWarnings() []string {
-	var warnings []string
-	if core.GetCoreConfigInternal() != nil && core.GetCoreConfigInternal().DisableSSCTokens {
-		warnings = append(warnings, "Server Side Consistent Tokens are disabled, due to the "+
-			"VAULT_DISABLE_SERVER_SIDE_CONSISTENT_TOKENS environment variable being set. "+
-			"It is not recommended to run Vault for an extended period of time with this configuration.")
-	}
-	return warnings
-}
-
 func (core *Core) GetSealStatus(ctx context.Context) (*SealStatusResponse, error) {
 	sealed := core.Sealed()
 
@@ -4791,7 +4778,6 @@ func (core *Core) GetSealStatus(ctx context.Context) (*SealStatusResponse, error
 		ClusterID:    clusterID,
 		RecoverySeal: core.SealAccess().RecoveryKeySupported(),
 		StorageType:  core.StorageType(),
-		Warnings:     core.getStatusWarnings(),
 	}
 
 	if resourceIDonHCP != "" {
